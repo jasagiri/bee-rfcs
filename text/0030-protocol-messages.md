@@ -4,31 +4,47 @@
 + Bee issue: [iotaledger/bee#70](https://github.com/iotaledger/bee/issues/70)
 
 # Summary
-
+<!--
 This RFC introduces the IOTA protocol messages that were initially added in
 [IRI#1393](https://github.com/iotaledger/iri/pull/1393).
+-->
+
+このRFCでは、[IRI#1393](https://github.com/iotaledger/iri/pull/1393)で最初に追加されたIOTAプロトコルメッセージを紹介しています。
 
 # Motivation
-
+<!--
 To be able to take part in the IOTA networks, Bee nodes need to implement the exact same protocol presented in this RFC
 and currently being used by [IRI](https://github.com/iotaledger/iri) nodes and
 [HORNET](https://github.com/gohornet/hornet) nodes. However, it does not necessarily mean implementing the same versions
 of the protocol. A design decision - later explained - concludes that Bee nodes and IRI nodes will not be able to
 communicate with each other.
+-->
+
+IOTAネットワークに参加できるようにするためには、BeeノードはこのRFCと現在利用されている[IRI](https://github.com/iotaledger/iri)ノードと[HORNET](https://github.com/gohornet/hornet)ノードで提示されているのと全く同じプロトコルを実装する必要があります。ただし、同じバージョンのプロトコルを実装することを必ずしも意味しません。後で説明しますが設計上、BeeノードとIRIノードは互いにコミュニケーションを取ることができないよう決定されました。
 
 # Detailed design
-
+<!--
 This section details:
 - The `Message` trait that provides serialization and deserialization of messages to and from byte buffers;
 - A type-length-value protocol - on top of the trait - that adds metadata in order to send and receive the messages over
   a transport layer;
 - The current `Message` implementations representing handshake, requests, responses, events, ...;
+-->
+
+このセクションの詳細：
+- バイトバッファ間のメッセージのシリアライズとデシリアライズを提供する`Message`トレイト
+- トレイト上のtype-length-valueプロトコル。トランスポートレイヤーを超えてメッセージを送受信するメタデータを加えます。
+- 現在の`Message`の実装は、ハンドシェイク、リクエスト、レスポンス、イベント、...
 
 ## `Message` trait
-
+<!--
 The `Message` trait is protocol agnostic and only provides serialization and deserialization to and from byte buffers.
 It should not be used as is but rather be paired with a higher layer - like a type-length-value encoding - and as such
 does not provide any bounds check on inputs/outputs buffers.
+-->
+
+`Message`トレイトはプロトコルに依存せず、バイトバッファ間のシリアライズとデシリアライズのみ提供します。
+これはそのまま利用するのではなく、type-length-valueエンコーディングのような、より上位のレイヤーと組み合わせる必要があります。入出力バッファの境界チェックなどは提供しません。
 
 ```rust
 /// A trait describing the behavior of a message.
@@ -55,18 +71,26 @@ trait Message {
 ```
 
 **Notes**:
+<!--
 - `size_range` returns an allowed range for the message size because some parts of some messages can be trimmed. It is
   used to check if a message coming from a transport layer has a valid size. More details on compression below;
 - `from_bytes`/`into_bytes` panic if incorrectly used, only the following safe TLV module should directly use them;
 - `into_bytes` does not allocate a buffer because the following TLV protocol implies concatenating a header inducing
   another allocation. Since this is a hot path, a slice of an already allocated buffer for both the header and payload
   is expected; hence, limiting the amount of allocation to the bare minimum;
+-->
+- `size_range`はメッセージの一部を切り詰められるのでメッセージサイズの許容範囲を返します。これはトランスポート層からのメッセージが有効なサイズを持っているかをチェックするために使用されます。圧縮についての詳細は以下のとおりです。
+- `from_bytes`または`into_bytes`パニックが誤って使用された場合、次の安全なTLVモジュールのみが直接それらを使用することになります。
+- 次のTLVプロトコルはヘッダーを連結して別の割当を引き起こすため、`into_bytes`はバッファを割り当てません。これはホットパスであるため、ヘッダとペイロードの両方にすでに割り当てられているバッファのスライスが想定されます。したがって、割当量を最小限に制限します。
 
 ## Type-length-value protocol
-
+<!--
 The [type-length-value](https://en.wikipedia.org/wiki/Type-length-value) module is a safe layer on top of the messages.
 It allows serialization/deserialization to/from a byte buffer ready to be sent/received to/from a transport layer by
 prepending or reading a header containing the type and length of the payload.
+-->
+[type-length-value](https://en.wikipedia.org/wiki/Type-length-value) モジュールはメッセージの上にある安全なレイヤーです。
+これは、ペイロードの型と長さを含むヘッダの前置または読み込みをするトランスポート層間で送信できるように、バイトバッファへのシリアライズやデシリアライズを可能にします。
 
 ### Header
 
@@ -98,19 +122,25 @@ fn tlv_into_bytes<M: Message>(message: M) -> Vec<u8> {
 ```
 
 ## Messages
-
+<!--
 Since the various types of messages are constructed with different kind of data, there can not be a single constructor
 signature in the `Message` trait. Implementations are then expected to provide a convenient `new` method to build them.
+-->
+
+様々なタイプのメッセージは異なる種類のデータで作られるため、`Message`トレイトには単一のコンストラクタシグネチャは存在しません。そして、実装に便利な`new`メソッドを提供することを期待されています。
 
 ### Endianness
-
+<!--
 All multi-byte number fields of the messages of the protocol are represented as
 [big-endian](https://en.wikipedia.org/wiki/Endianness).
+-->
+
+プロトコルのメッセージのすべてのマルチバイトナンバーフィールドは、[big-endian](https://en.wikipedia.org/wiki/Endianness)で表されます。
 
 ### Version 0
 
 #### `Handshake`
-
+<!-->
 Type ID: `1`
 
 A message that allows two nodes to pair.
@@ -136,11 +166,34 @@ Up to 32 bytes are supported, limiting the number of protocol versions to 256. E
 *  `[0b01101110, 0b01010001]` denotes that the node supports protocol versions 2, 3, 4, 6, 7, 9, 13 and 15.
 * `[0b01101110, 0b01010001, 0b00010001]` denotes that the node supports protocol versions 2, 3, 4, 6, 7, 9, 13, 15, 17
   and 21.
+-->
+Type ID: `1`
+
+2つのノードのペアリングを許可するメッセージ。
+ペアリングするノードが同じ構成で動作していることを確認するための有用な情報が含まれています。
+構成が異なると接続が閉じられてノードがペアリングされなくなります。
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`port`|ノード<sup>1</sup>のプロトコルポート|`u16`|2|
+|`timestamp`|ノードによってメッセージが作成されたときのタイムスタンプ（ms）|`u64`|8|
+|`coordinator`|ノードが追跡しているコーディネーターの公開鍵|``[u8; 49]``|49|
+|`minimum_weight_magnitude`|ノードの最小重量のマグニチュード|`u8`|1|
+|`supported_versions`|ノード<sup>2</sup>がサポートするプロトコルのバージョン|`Vec<u8>`|1-32|
+
+<sup>1</sup> 着信接続が作成されるとランダムなポートが割り当てられます。このフィールドにはノードが使用している実際のポートが含まれており、許可リストに頭足されている潜在的なピアとの接続するために使用されます。
+
+<sup2>2</sup2> ビットマスクは、ノードがサポートするプロトコルのバージョンを示すために使用されます。LSBが出発点となります。32バイトまでサポートされており、プロトコルのバージョン数は256に制限されています。例としては以下のようなものがあります。：
+* `[0b00000001]` ノードがプロトコルバージョン1をサポートしていることを示します。
+* `[0b00000111]` ノードがプロトコルバージョン1,2,3をサポートしていることを示します。
+* `[0b01101110]` ノードがプロトコルバージョン2,3,4,6,7をサポートしていることを示します。
+*  `[0b01101110, 0b01010001]` ノードがプロトコルバージョン2,3,4,6,7,9,13,15をサポートしていることを示します。
+* `[0b01101110, 0b01010001, 0b00010001]` ノードがプロトコルバージョン2,3,4,6,7,9,13,15,17,21をサポートしていることを示します。
 
 ### Version 1
 
 #### `LegacyGossip`
-
+<!--
 Type ID: `2`
 
 A legacy message to send a transaction and request another one at the same time.
@@ -155,11 +208,24 @@ A legacy message to send a transaction and request another one at the same time.
 **Note**: This message is the original IRI protocol message before the TLV protocol was introduced. It was kept by
 HORNET for compatibility with IRI but is not used between HORNET nodes. Its "ping-pong" concept has complex consequences
 on the node design and as such will not be implemented by Bee.
+-->
+Type ID: `2`
+
+トランザクションを送信し、同時に別のトランザクションを要求するレガシーメッセージ。
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`transaction`|送信するトランザクション。圧縮できます。<sup>1</sup>.|`Vec<u8>`|292-1604|
+|`hash`|要求されたトランザクションのハッシュ。|`[u8; 49]`|49|
+
+<sup>1</sup> 圧縮については最後に詳しく書いてあります。
+
+**注**：このメッセージは、TLVプロトコルが導入される前のオリジナルのIRIプロトコルメッセージです。これはIRIとの互換性のためのHORNETですが、HORNETノード間では使用されません。その「ピンポン」コンセプトはノード設計に複雑な影響を与えるため、Beeでは実装されません。
 
 ### Version 2
 
 #### `MilestoneRequest`
-
+<!-->
 Type ID: `3`
 
 A message to request a milestone.
@@ -167,9 +233,18 @@ A message to request a milestone.
 |Name|Description|Type|Length|
 |----|-----------|----|------|
 |`index`|Index of the requested milestone.|`u32`|4|
+-->
+
+Type ID: `3`
+
+マイルストーンを要求するメッセージ。
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`index`|要求されたマイルストーンのインデックス。|`u32`|4|
 
 #### `Transaction`
-
+<!-->
 Type ID: `4`
 
 A message to send a transaction.
@@ -179,9 +254,19 @@ A message to send a transaction.
 |`transaction`|Transaction to send. Can be compressed<sup>1</sup>.|`Vec<u8>`|292-1604|
 
 <sup>1</sup> Compression is detailed at the end.
+-->
+Type ID: `4`
+
+トランザクションを送信するためのメッセージ
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`transaction`|送信するトランザクション。圧縮できます。<sup>1</sup>.|`Vec<u8>`|292-1604|
+
+<sup>1</sup> 圧縮については最後に詳しく書いてあります。
 
 #### `TransactionRequest`
-
+<!--
 Type ID: `5`
 
 A message to request a transaction.
@@ -189,9 +274,18 @@ A message to request a transaction.
 |Name|Description|Type|Length|
 |----|-----------|----|------|
 |`hash`|Hash of the requested transaction.|`[u8; 49]`|49|
+-->
+
+Type ID: `5`
+
+トランザクションを要求するメッセージ。
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`hash`|要求されたトランザクションのハッシュ|`[u8; 49]`|49|
 
 #### `Heartbeat`
-
+<!-->
 Type ID: `6`
 
 A message that informs about the part of the Tangle currently being fully stored by a node.
@@ -206,13 +300,32 @@ It also helps other nodes to know if they can ask it a specific transaction.
 |----|-----------|----|------|
 |`solid_milestone_index`|Index of the last solid milestone.|`u32`|4|
 |`snapshot_milestone_index`|Index of the snapshotted milestone.|`u32`|4|
+-->
+
+Type ID: `6`
+
+ノードによってとりあえず完全に格納されているTangleの一部について通知するメッセージ。
+このメッセージはノードのときに送信されます。
+* 単に別のノードとペアになった。
+* ローカルのスナップショットを行い、Tangleの一部を破棄した。
+* 新たなマイルストーンを固めた。
+
+また、他のノードが特定のトランザクションを依頼できるかどうか知るのにも役立ちます。
+
+|名称|説明|型|長さ|
+|----|-----------|----|------|
+|`solid_milestone_index`|確実な最後のマイルストーンのインデックス|`u32`|4|
+|`snapshot_milestone_index`|スナップショットされたマイルストーンのインデックス|`u32`|4|
 
 ### Compression
-
+<!--
 A transaction encoded in bytes - using the T5B1 codec - has a length of `1604`. The `payload` field itself occupies
 `1312` bytes and is often partially or completely filled with `0`s. For this reason, trailing `0`s of the `payload`
 field are removed, providing a compression rate up to nearly 82%. Only the `payload` field is altered during this
 compression and the order of the fields stays the same.
+-->
+
+T5B1コーデックでバイト単位にエンコードされたトランザクションは`1604`長あります。`payload`フィールド自体は`1312`バイトで、部分的または完全に`0`で埋まられることが多い。このため`payload`フィールドの末尾の`0`は削除され、最大82%近い圧縮率が得られます。この圧縮中には`payload`フィールドだけが変更され、フィールドの順序は同じままになります。
 
 Proposed functions:
 ```rust
@@ -226,17 +339,23 @@ fn uncompress_transaction_bytes(bytes: &[u8]) -> [u8; 1604] {
 ```
 
 # Drawbacks
-
+<!--
 Since IRI nodes only implement version `0` and `1` and Bee nodes only implement versions `0` and `2`, they will not be
 able to communicate with each other.
+-->
+IRIノードはバージョン`0`と`1`しか実装されておらず、Beeノードはバージョン`0`と`2`しか実装されていないので、お互いに通信することができません。
 
 # Rationale and alternatives
-
+<!--
 There are alternatives to a type-length-value protocol but it is very efficient and easily updatable without breaking
 change. Also, since this is the protocol that has been chosen for the IOTA network, there is no other alternative for
 Bee.
+-->
+type-length-valueプロトコルの代替案がありますが、非常に効率的で、変更によって壊れることなく簡単に更新可能です。また、これはIOTAネットワークのために選ばれたプロコトルなので、Beeの代替案は他にありません。
 
 # Unresolved questions
-
+<!-->
 There are no open questions at this point.
 This protocol has been used for a long time and this RFC will be updated with new message types when/if needed.
+-->
+現時点で未解決の質問はありません。このプロトコルは長い間使われたもので、このRFCは必要に応じて新しいメッセージタイプが更新されます。
